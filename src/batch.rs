@@ -374,6 +374,7 @@ lazy_static::lazy_static! {
 
 struct ReVisitor(&'static regex::Regex);
 
+// FIXME, add numeric types in deserializing
 impl<'de> Visitor<'de> for ReVisitor {
     type Value = (f64, Option<Cow<'de, str>>);
 
