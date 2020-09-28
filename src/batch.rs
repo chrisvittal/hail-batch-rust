@@ -4,6 +4,7 @@ use serde::{
     Deserialize, Deserializer, Serialize, Serializer,
 };
 use std::{
+    borrow::Cow,
     collections::HashMap,
     num::NonZeroU64,
     ops::{Deref, DerefMut},
@@ -374,21 +375,31 @@ lazy_static::lazy_static! {
 struct ReVisitor(&'static regex::Regex);
 
 impl<'de> Visitor<'de> for ReVisitor {
-    type Value = (f64, Option<&'de str>);
+    type Value = (f64, Option<Cow<'de, str>>);
 
     fn expecting(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-        write!(f, "expected value to match regex, {:?}", self.0.as_str())
+        write!(f, "value to match regex, {:?}", self.0.as_str())
     }
 
-    fn visit_borrowed_str<E: DeError>(self, val: &'de str) -> Result<Self::Value, E> {
-        use serde::de;
+    fn visit_str<E: DeError>(self, val: &str) -> Result<Self::Value, E> {
         if let Some(groups) = self.0.captures(val) {
             // these unwraps won't panic as we know we have a capture group, and we know
             // we have a floating point string.
             let v = groups.get(1).unwrap().as_str().parse().unwrap();
-            Ok((v, groups.get(2).map(|m| m.as_str())))
+            Ok((v, groups.get(2).map(|m| Cow::from(m.as_str().to_owned()))))
         } else {
-            Err(E::invalid_value(de::Unexpected::Str(val), &self))
+            Err(E::invalid_value(serde::de::Unexpected::Str(val), &self))
+        }
+    }
+
+    fn visit_borrowed_str<E: DeError>(self, val: &'de str) -> Result<Self::Value, E> {
+        if let Some(groups) = self.0.captures(val) {
+            // these unwraps won't panic as we know we have a capture group, and we know
+            // we have a floating point string.
+            let v = groups.get(1).unwrap().as_str().parse().unwrap();
+            Ok((v, groups.get(2).map(|m| m.as_str().into())))
+        } else {
+            Err(E::invalid_value(serde::de::Unexpected::Str(val), &self))
         }
     }
 }
@@ -398,7 +409,7 @@ where
     D: Deserializer<'de>,
 {
     let (val, suf) = de.deserialize_str(ReVisitor(&*MEM_RE))?;
-    let mul = match suf.unwrap_or("") {
+    let mul = match suf.unwrap_or_else(|| "".into()).as_ref() {
         "K" => 1000f64,
         "Ki" => 1024f64,
         "M" => 1000f64.powi(2),
@@ -421,7 +432,7 @@ where
     D: Deserializer<'de>,
 {
     let (val, suf) = de.deserialize_str(ReVisitor(&*CPU_RE))?;
-    if Some("m") == suf {
+    if Some("m") == suf.as_deref() {
         Ok(val / 1000.)
     } else {
         Ok(val)
@@ -739,21 +750,24 @@ mod env_map {
 
     #[derive(Serialize, Deserialize)]
     struct EnvMapping<'a> {
-        name: &'a str,
-        value: &'a str,
+        name: Cow<'a, str>,
+        value: Cow<'a, str>,
     }
 
     impl<'a> From<(&'a str, &'a str)> for EnvMapping<'a> {
         fn from((name, value): (&'a str, &'a str)) -> Self {
-            Self { name, value }
+            Self {
+                name: name.into(),
+                value: value.into(),
+            }
         }
     }
 
     impl<'a, S1: AsRef<str>, S2: AsRef<str>> From<(&'a S1, &'a S2)> for EnvMapping<'a> {
         fn from((name, value): (&'a S1, &'a S2)) -> Self {
             Self {
-                name: name.as_ref(),
-                value: value.as_ref(),
+                name: name.as_ref().into(),
+                value: value.as_ref().into(),
             }
         }
     }
