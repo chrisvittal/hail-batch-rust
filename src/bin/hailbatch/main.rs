@@ -6,12 +6,12 @@ use serde::Deserialize;
 use tokio::prelude::*;
 
 #[derive(Clone, Copy, Debug)]
-enum OutputFormat {
+enum Format {
     Json,
     Yaml,
 }
 
-impl std::str::FromStr for OutputFormat {
+impl std::str::FromStr for Format {
     type Err = eyre::Report;
     fn from_str(s: &str) -> eyre::Result<Self> {
         match s {
@@ -22,20 +22,18 @@ impl std::str::FromStr for OutputFormat {
     }
 }
 
-impl OutputFormat {
+impl Format {
     fn get_vec_serializer<T: serde::Serialize + ?Sized>(
         &self,
     ) -> impl Fn(&T) -> eyre::Result<Vec<u8>> + '_ {
         move |item| match self {
-            OutputFormat::Json => {
+            Format::Json => {
                 let mut v =
                     serde_json::to_vec_pretty(item).wrap_err("could not JSON serialize item")?;
                 v.push(b'\n');
                 Ok(v)
             }
-            OutputFormat::Yaml => {
-                serde_yaml::to_vec(item).wrap_err("could not YAML serialize item")
-            }
+            Format::Yaml => serde_yaml::to_vec(item).wrap_err("could not YAML serialize item"),
         }
     }
 }
@@ -60,8 +58,8 @@ enum Command {
 /// Get information about billing projects
 struct Billing {
     /// format to print the output, can be either 'json' or 'yaml' (the default).
-    #[argh(option, short = 'o', default = "OutputFormat::Yaml")]
-    format: OutputFormat,
+    #[argh(option, short = 'o', default = "Format::Yaml")]
+    format: Format,
     #[argh(subcommand)]
     cmd: BillingCmd,
 }
