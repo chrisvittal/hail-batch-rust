@@ -1,6 +1,6 @@
 [package]
 name = "hail-batch"
-version = "0.1.0"
+version = "0.0.1"
 authors = ["Chris Vittal <chris@vittal.dev>"]
 edition = "2018"
 license = "MIT"
