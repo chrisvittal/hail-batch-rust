@@ -1,0 +1,13 @@
+image: archlinux
+packages:
+  - rust
+sources:
+  - https://git.sr.ht/~cdv/hail-batch-rust
+tasks:
+  - build: |
+    cd hail-batch-rust
+    cargo build --verbose
+triggers:
+  - action: email
+    condition: always
+    to: chris@vittal.dev
