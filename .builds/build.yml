@@ -5,8 +5,8 @@ sources:
   - https://git.sr.ht/~cdv/hail-batch-rust
 tasks:
   - build: |
-    cd hail-batch-rust
-    cargo build --verbose
+      cd hail-batch-rust
+      cargo build --verbose
 triggers:
   - action: email
     condition: always
