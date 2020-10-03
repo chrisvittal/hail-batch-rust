@@ -26,14 +26,17 @@ impl Format {
     fn get_vec_serializer<T: serde::Serialize + ?Sized>(
         &self,
     ) -> impl Fn(&T) -> eyre::Result<Vec<u8>> + '_ {
-        move |item| match self {
-            Format::Json => {
-                let mut v =
-                    serde_json::to_vec_pretty(item).wrap_err("could not JSON serialize item")?;
-                v.push(b'\n');
-                Ok(v)
-            }
-            Format::Yaml => serde_yaml::to_vec(item).wrap_err("could not YAML serialize item"),
+        move |item| {
+            let mut v = match self {
+                Format::Json => {
+                    serde_json::to_vec_pretty(item).wrap_err("could not JSON serialize item")?
+                }
+                Format::Yaml => {
+                    serde_yaml::to_vec(item).wrap_err("could not YAML serialize item")?
+                }
+            };
+            v.push(b'\n');
+            Ok(v)
         }
     }
 }
